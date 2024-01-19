@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testApp/internal/entity"
 
 	"github.com/jackc/pgx/v5"
@@ -37,7 +38,6 @@ func (r *userRepository) GetAll(ctx context.Context, page int, pageSize int, sor
 
 	rows, err := r.DB.Query(ctx, query, pageSize, (page-1)*pageSize)
 	if err != nil {
-		// r.logger.Error("executing statement", "error", err.Error())
 		return nil, err
 	}
 
@@ -47,16 +47,12 @@ func (r *userRepository) GetAll(ctx context.Context, page int, pageSize int, sor
 		var user entity.UserDto
 		err := rows.Scan(&user.ID, &user.Name, &user.Surname, &user.Patronymic, &user.Age, &user.Gender, &user.Nationality)
 		if err != nil {
-			// r.logger.Error("scanning rows", "error", err.Error())
-			// http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return nil, err
 		}
 		users = append(users, user)
 	}
 
 	if err := rows.Err(); err != nil {
-		// r.logger.Error("reading from rows", "error", err.Error())
-		// http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return nil, err
 	}
 
@@ -68,13 +64,29 @@ func (r *userRepository) GetExtraInfo(name string) (entity.UserExtraInfo, error)
 	userGender := &entity.UserGender{}
 	userCountry := &entity.UserNationality{}
 
-	if err := r.fetchURL(urlAge+name, &userAge); err != nil {
-		return entity.UserExtraInfo{}, err
+	relations := map[string]any{
+		urlAge + name:     &userAge,
+		urlGender + name:  &userGender,
+		urlCountry + name: &userCountry,
 	}
-	if err := r.fetchURL(urlGender+name, &userGender); err != nil {
-		return entity.UserExtraInfo{}, err
+
+	var wg sync.WaitGroup
+	var errCh = make(chan error, len(relations))
+
+	wg.Add(len(relations))
+	for url, target := range relations {
+		go func(url string, target any) {
+			defer wg.Done()
+			if err := r.fetchURL(url, target); err != nil {
+				errCh <- err
+			}
+		}(url, target)
 	}
-	if err := r.fetchURL(urlCountry+name, &userCountry); err != nil {
+
+	wg.Wait()
+	close(errCh)
+
+	if err := <-errCh; err != nil {
 		return entity.UserExtraInfo{}, err
 	}
 
@@ -101,7 +113,6 @@ func (r *userRepository) Save(ctx context.Context, user entity.UserDto) error {
 		user.Age, user.Gender, user.Nationality)
 
 	if err != nil {
-		// r.logger.Error("executing statement", "error", err.Error())
 		return err
 	}
 
@@ -115,7 +126,6 @@ func (r *userRepository) Update(ctx context.Context, id int, user entity.UserDto
 	_, err := r.DB.Exec(ctx, query, user.Name, user.Surname, user.Patronymic,
 		user.Age, user.Gender, user.Nationality, id)
 	if err != nil {
-		// r.logger.Error("updating user", "error", err.Error())
 		return err
 	}
 
@@ -127,7 +137,6 @@ func (r *userRepository) Delete(ctx context.Context, id int) error {
 
 	_, err := r.DB.Exec(ctx, query, id)
 	if err != nil {
-		// r.logger.Error("executing statement", "error", err.Error())
 		return err
 	}
 
