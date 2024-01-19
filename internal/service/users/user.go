@@ -9,7 +9,7 @@ import (
 )
 
 type UserService interface {
-	GetAll(context.Context, string, string) (entity.PaginatedUserData, error)
+	GetAll(context.Context, string, string, string) (entity.PaginatedUserData, error)
 	Save(context.Context, entity.User) (int, error)
 	Update(context.Context, string, entity.User) (int, error)
 	Delete(context.Context, string) (int, error)
@@ -25,7 +25,7 @@ func NewUserService(r users.UserRepository) *userService {
 	}
 }
 
-func (us *userService) GetAll(ctx context.Context, pageStr string, pageSizeStr string) (entity.PaginatedUserData, error) {
+func (us *userService) GetAll(ctx context.Context, pageStr string, pageSizeStr string, sortMethod string) (entity.PaginatedUserData, error) {
 	page := 1
 	pageSize := 10
 
@@ -42,7 +42,22 @@ func (us *userService) GetAll(ctx context.Context, pageStr string, pageSizeStr s
 		}
 	}
 
-	users, err := us.userRepo.GetAll(ctx, page, pageSize)
+	sorting := ""
+
+	switch sortMethod {
+	case "alphabeticallyByName":
+		sorting = "name"
+	case "alphabeticallyBySurname":
+		sorting = "surname"
+	case "byAge":
+		sorting = "age"
+	case "byNationality":
+		sorting = "nationality"
+	default:
+		sorting = "id"
+	}
+
+	users, err := us.userRepo.GetAll(ctx, page, pageSize, sorting)
 	if err != nil {
 		return entity.PaginatedUserData{}, err
 	}

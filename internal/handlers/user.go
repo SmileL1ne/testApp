@@ -11,8 +11,9 @@ import (
 func (r *routes) getAllUsers(w http.ResponseWriter, req *http.Request) {
 	pageStr := req.URL.Query().Get("page")
 	pageSizeStr := req.URL.Query().Get("pageSize")
+	sortingMethod := req.URL.Query().Get("sort")
 
-	paginatedUserData, err := r.service.User.GetAll(req.Context(), pageStr, pageSizeStr)
+	paginatedUserData, err := r.service.User.GetAll(req.Context(), pageStr, pageSizeStr, sortingMethod)
 	if err != nil {
 		r.serverError(w, req, err)
 		return

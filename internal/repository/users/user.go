@@ -2,6 +2,7 @@ package users
 
 import (
 	"context"
+	"fmt"
 	"testApp/internal/entity"
 
 	"github.com/jackc/pgx/v5"
@@ -14,7 +15,7 @@ const (
 )
 
 type UserRepository interface {
-	GetAll(context.Context, int, int) ([]entity.UserDto, error)
+	GetAll(context.Context, int, int, string) ([]entity.UserDto, error)
 	Save(context.Context, entity.UserDto) error
 	Update(context.Context, int, entity.UserDto) error
 	Delete(context.Context, int) error
@@ -31,16 +32,10 @@ func NewUserRepository(db *pgx.Conn) *userRepository {
 	}
 }
 
-func (r *userRepository) GetAll(ctx context.Context, page int, pageSize int) ([]entity.UserDto, error) {
-	query := `SELECT * FROM users ORDER BY id LIMIT $1 OFFSET $2`
+func (r *userRepository) GetAll(ctx context.Context, page int, pageSize int, sorting string) ([]entity.UserDto, error) {
+	query := fmt.Sprintf(`SELECT * FROM users ORDER BY %s LIMIT $1 OFFSET $2`, sorting)
 
-	stmt, err := r.DB.Prepare(ctx, "get_all_users", query)
-	if err != nil {
-		// r.logger.Error("preparing statement", "error", err.Error())
-		return nil, err
-	}
-
-	rows, err := r.DB.Query(ctx, stmt.Name, pageSize, (page-1)*pageSize)
+	rows, err := r.DB.Query(ctx, query, pageSize, (page-1)*pageSize)
 	if err != nil {
 		// r.logger.Error("executing statement", "error", err.Error())
 		return nil, err
@@ -101,13 +96,7 @@ func (r *userRepository) Save(ctx context.Context, user entity.UserDto) error {
 	query := `INSERT INTO users (name, surname, patronymic, age, gender, nationality) 
 	VALUES($1, $2, $3, $4, $5, $6)`
 
-	stmt, err := r.DB.Prepare(ctx, "insert_user", query)
-	if err != nil {
-		// r.logger.Error("preparing statement", "error", err.Error())
-		return err
-	}
-
-	_, err = r.DB.Exec(ctx, stmt.Name,
+	_, err := r.DB.Exec(ctx, query,
 		user.Name, user.Surname, user.Patronymic,
 		user.Age, user.Gender, user.Nationality)
 
@@ -123,13 +112,7 @@ func (r *userRepository) Update(ctx context.Context, id int, user entity.UserDto
 	query := `UPDATE users SET name = $1, surname = $2, patronymic = $3, age = $4, 
 		gender = $5, nationality = $6 WHERE id = $7`
 
-	stmt, err := r.DB.Prepare(ctx, "update_user", query)
-	if err != nil {
-		// r.logger.Error("preparing statement", "error", err.Error())
-		return err
-	}
-
-	_, err = r.DB.Exec(ctx, stmt.Name, user.Name, user.Surname, user.Patronymic,
+	_, err := r.DB.Exec(ctx, query, user.Name, user.Surname, user.Patronymic,
 		user.Age, user.Gender, user.Nationality, id)
 	if err != nil {
 		// r.logger.Error("updating user", "error", err.Error())
@@ -142,13 +125,7 @@ func (r *userRepository) Update(ctx context.Context, id int, user entity.UserDto
 func (r *userRepository) Delete(ctx context.Context, id int) error {
 	query := "DELETE FROM users WHERE id=$1"
 
-	stmt, err := r.DB.Prepare(ctx, "delete_user", query)
-	if err != nil {
-		// r.logger.Error("preparing statement", "error", err.Error())
-		return err
-	}
-
-	_, err = r.DB.Exec(ctx, stmt.Name, id)
+	_, err := r.DB.Exec(ctx, query, id)
 	if err != nil {
 		// r.logger.Error("executing statement", "error", err.Error())
 		return err

@@ -17,7 +17,7 @@ This is a test application which is a little CRUD service for retrieving user in
 - **GET: /users** - retrieving all users in json format
 > For **pagination** inlcude **'page'** query parameter for page number and **'pageSize'** for number of users per page
 
-
+> For **sorting** include **'sort'** query parameter with next available parameters - 'alphabeticallyByName', 'alphabeticallyBySurname', 'byAge', 'byNationality'
 
 - **POST: /users** - adding new user info
 - **PUT: /users/:id** - updating user info (only that user initially put) by id
